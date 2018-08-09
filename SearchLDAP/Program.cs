@@ -11,14 +11,15 @@ namespace SearchLDAP
         static void Main(string[] args)
         {
             char exit = 'N';
-            while(exit != 'S')
+            while (exit != 'S')
             {
                 Console.WriteLine("#####################");
                 Console.WriteLine("### PESQUISA LDAP ###");
                 Console.WriteLine("#####################\n");
 
-                Console.WriteLine("[U] Pesquisar por Usuário");
-                Console.WriteLine("[G] Pesquisar por Grupo");
+                Console.WriteLine("[U] Pesquisar Usuário");
+                Console.WriteLine("[G] Pesquisar Grupo");
+                Console.WriteLine("[M] Pesquisar Grupo por Usuário");
                 Console.WriteLine("[S] Sair");
 
                 Console.WriteLine("Selecione uma das opções.\n");
@@ -75,10 +76,35 @@ namespace SearchLDAP
                         } while (string.IsNullOrWhiteSpace(parameter));
 
                         break;
+
+                    case ConsoleKey.M:
+
+                        do
+                        {
+                            Console.WriteLine("Insira o nome do usuário: ");
+                            parameter = Console.ReadLine();
+                            if (string.IsNullOrWhiteSpace(parameter))
+                            {
+                                Console.WriteLine("Nome inválido!\n");
+                            }
+                            else
+                            {
+                                SearchUserGroup(parameter);
+                                Console.WriteLine("Deseja realizar nova pesquisa?");
+                                Console.WriteLine("(Clique 'S' para continuar ou qualquer outra tecla para cancelar)\n");
+                                keyPressed = Console.ReadKey(true);
+                                if (keyPressed.Key == ConsoleKey.S)
+                                    parameter = string.Empty;
+                            }
+
+                        } while (string.IsNullOrWhiteSpace(parameter));
+
+                        break;
+
                     case ConsoleKey.S:
                         exit = 'S';
                         break;
-                      default:
+                    default:
                         break;
                 }
             }
@@ -93,9 +119,9 @@ namespace SearchLDAP
             while (rootEntry == null)
             {
                 // LDAP://empresa.com.br
-                //Console.WriteLine("Insira o diretório LDAP: ");
-                //string directory = Console.ReadLine();
-                string directory = "LDAP://unimedbh.com.br";
+                Console.WriteLine("Insira o diretório LDAP: ");
+                string directory = Console.ReadLine();
+
                 try
                 {
                     rootEntry = new DirectoryEntry(directory);
@@ -158,6 +184,30 @@ namespace SearchLDAP
                 }
             }
             Console.WriteLine("Grupos encontrados: {0}\n", count);
+        }
+
+        private static void SearchUserGroup(string user)
+        {
+            int count = 0;
+            using (DirectorySearcher searcher = new DirectorySearcher(rootEntry))
+            {
+                var queryFormat = "(&(objectClass=user)(objectCategory=person)(cn={0})(!userAccountControl:1.2.840.113556.1.4.803:=2))";
+                searcher.Filter = string.Format(queryFormat, user);
+                searcher.SizeLimit = 1;
+                Console.WriteLine("--------------------");
+                SearchResult result = searcher.FindOne();
+                if (result.Properties["memberOf"].Count > 0)
+                {
+                    foreach (var memberOf in result.Properties["memberOf"])
+                    {
+                        string[] memberParams = memberOf.ToString().Split(',');
+                        Console.WriteLine(memberParams.Length > 0 ? memberParams[0] : memberOf.ToString());
+                        count++;
+                    }
+                }
+                Console.WriteLine("--------------------");
+            }
+            Console.WriteLine("Total de grupos do usuário: {0}\n", count);
         }
 
         private static void ExitSearch()
